@@ -1,3 +1,5 @@
+use ndarray::{s, Array2, ArrayView1};
+
 use crate::tree_vec::ops::avl::AVLTree;
 use crate::tree_vec::types::{Ancestry, Pair, Pairs};
 use crate::utils::is_unordered;
@@ -52,6 +54,25 @@ fn get_pairs_loop(v: &[usize]) -> Pairs {
 }
 
 pub fn make_tree(v: &[usize]) -> AVLTree {
+    let mut avl_tree = AVLTree::new();
+    let k = v.len();
+    avl_tree.insert(0, (0, 1));
+
+    for (i, &vi) in v.iter().enumerate().take(k).skip(1) {
+        let next_leaf = i + 1;
+        if vi <= i {
+            avl_tree.insert(0, (v[i], next_leaf));
+        } else {
+            let index = v[i] - next_leaf;
+            let pair = AVLTree::lookup(&avl_tree, index);
+            avl_tree.insert(index + 1, (pair.0, next_leaf));
+        }
+    }
+
+    avl_tree
+}
+
+pub fn make_tree_ndarray(v: &ArrayView1<usize>) -> AVLTree {
     let mut avl_tree = AVLTree::new();
     let k = v.len();
     avl_tree.insert(0, (0, 1));
@@ -133,6 +154,33 @@ fn get_ancestry_from_pairs(pairs: &Pairs) -> Ancestry {
     ancestry
 }
 
+fn get_ancestry_from_pairs_ndarray(pairs: &Pairs) -> Array2<usize> {
+    let k = pairs.len();
+    let mut ancestry: Array2<usize> = Array2::zeros((k, 3));
+
+    let mut parents: Vec<usize> = (0..=(2 * k + 1)).collect();
+
+    for (i, &(c1, c2)) in pairs.iter().enumerate() {
+        let next_parent = k + 1 + i;
+
+        // Push the current cherry to ancestry
+        ancestry[[i, 0]] = parents[c1];
+        ancestry[[i, 1]] = parents[c2];
+        ancestry[[i, 2]] = next_parent;
+
+        // Update the parents of current children
+        parents[c1] = next_parent;
+        parents[c2] = next_parent;
+    }
+
+    ancestry
+}
+
+pub fn get_ancestry_ndarray(v: &[usize]) -> Array2<usize> {
+    let pairs: Pairs = get_pairs(v);
+    get_ancestry_from_pairs_ndarray(&pairs)
+}
+
 /// Get the ancestry of the Phylo2Vec vector
 /// v[i] = which BRANCH we do the pairing from
 ///
@@ -204,6 +252,50 @@ pub fn from_edges(edges: &[(usize, usize)]) -> Vec<usize> {
     order_cherries(&mut ancestry);
 
     build_vector(&ancestry)
+}
+
+fn update_leaf_map(
+    map: &mut HashMap<usize, Vec<usize>>,
+    next_parent: usize,
+    child: usize,
+    parents: &mut [usize],
+) {
+    let parent = parents[child];
+
+    if let Some(leaves) = map.get(&parent) {
+        let mut leaves_ = leaves.clone();
+        map.get_mut(&next_parent).unwrap().append(&mut leaves_);
+    } else {
+        map.get_mut(&next_parent).unwrap().push(child);
+    }
+
+    parents[child] = next_parent;
+}
+
+pub fn get_leaves_by_internal_from_pairs(pairs: &Pairs) -> HashMap<usize, Vec<usize>> {
+    let k = pairs.len();
+
+    let mut mapping: HashMap<usize, Vec<usize>> = HashMap::with_capacity(k);
+    for i in 0..k {
+        mapping.insert(k + i + 1, Vec::new());
+    }
+
+    let mut next_parent = k + 1;
+    let mut parents = (0..2 * k + 1).collect::<Vec<usize>>();
+
+    for &(c1, c2) in pairs {
+        update_leaf_map(&mut mapping, next_parent, c1, &mut parents);
+        update_leaf_map(&mut mapping, next_parent, c2, &mut parents);
+        next_parent += 1;
+    }
+
+    mapping
+}
+
+pub fn get_leaves_by_internal(v: &[usize]) -> HashMap<usize, Vec<usize>> {
+    let pairs = get_pairs(v);
+
+    get_leaves_by_internal_from_pairs(&pairs)
 }
 
 pub fn find_coords_of_first_leaf(ancestry: &Ancestry, leaf: usize) -> (usize, usize) {
@@ -445,7 +537,7 @@ pub fn build_vector(cherries: &Ancestry) -> Vec<usize> {
 /// where n = number of leaves.
 /// Each distance corresponds to the sum of the branch lengths between two leaves
 /// Inspired from the `cophenetic` function in the `ape` package: https://github.com/emmanuelparadis/ape
-pub fn _cophenetic_distances(v: &[usize], bls: Option<&Vec<[f32; 2]>>) -> Vec<Vec<f32>> {
+pub fn _cophenetic_distances(v: &[usize], bls: Option<&Vec<[f32; 2]>>) -> Array2<f32> {
     let k = v.len();
     let ancestry = get_ancestry(v);
 
@@ -457,11 +549,11 @@ pub fn _cophenetic_distances(v: &[usize], bls: Option<&Vec<[f32; 2]>>) -> Vec<Ve
     // Note: unrooted option was removed.
     // Originally implemented to match tr.unroot() in ete3
     // But now prefer to operate such that unrooting
-    // preserves total branch lengths (compatible with ape,
+    // preserves total branch lengths (compatible with ape
     // and ete3, see https://github.com/etetoolkit/ete/pull/344)
 
     // Dist shape: N_nodes x N_nodes
-    let mut dist: Vec<Vec<f32>> = vec![vec![0.0; 2 * k + 1]; 2 * k + 1];
+    let mut dist = Array2::<f32>::zeros((2 * k + 1, 2 * k + 1));
     let mut all_visited: Vec<usize> = Vec::new();
 
     for i in 0..k {
@@ -470,24 +562,24 @@ pub fn _cophenetic_distances(v: &[usize], bls: Option<&Vec<[f32; 2]>>) -> Vec<Ve
 
         if !all_visited.is_empty() {
             for &visited in &all_visited[0..all_visited.len() - 1] {
-                let dist1 = dist[p][visited] + bl1;
-                let dist2 = dist[p][visited] + bl2;
+                let dist1 = dist[[p, visited]] + bl1;
+                let dist2 = dist[[p, visited]] + bl2;
 
-                dist[c1][visited] = dist1;
-                dist[visited][c1] = dist1;
-                dist[c2][visited] = dist2;
-                dist[visited][c2] = dist2;
+                dist[[c1, visited]] = dist1;
+                dist[[visited, c1]] = dist1;
+                dist[[c2, visited]] = dist2;
+                dist[[visited, c2]] = dist2;
             }
         }
 
-        dist[c1][c2] = bl1 + bl2;
-        dist[c2][c1] = bl1 + bl2;
+        dist[[c1, c2]] = bl1 + bl2;
+        dist[[c2, c1]] = bl1 + bl2;
 
-        dist[c1][p] = bl1;
-        dist[p][c1] = bl1;
+        dist[[c1, p]] = bl1;
+        dist[[p, c1]] = bl1;
 
-        dist[c2][p] = bl2;
-        dist[p][c2] = bl2;
+        dist[[c2, p]] = bl2;
+        dist[[p, c2]] = bl2;
 
         all_visited.push(c1);
         all_visited.push(c2);
@@ -495,14 +587,9 @@ pub fn _cophenetic_distances(v: &[usize], bls: Option<&Vec<[f32; 2]>>) -> Vec<Ve
     }
 
     let n_leaves = k + 1;
-    let mut result: Vec<Vec<f32>> = vec![vec![0.0; n_leaves]; n_leaves];
-    for i in 0..n_leaves {
-        for j in 0..n_leaves {
-            result[i][j] = dist[i][j];
-        }
-    }
 
-    result
+    // Return the upper-left n_leaves x n_leaves submatrix
+    dist.slice(s![0..n_leaves, 0..n_leaves]).to_owned()
 }
 
 /// Get the cophenetic distances from the Phylo2Vec vector
@@ -516,14 +603,8 @@ pub fn _cophenetic_distances(v: &[usize], bls: Option<&Vec<[f32; 2]>>) -> Vec<Ve
 /// let v = vec![0, 0, 0, 1, 3, 3, 1, 4, 4];
 /// let dist = cophenetic_distances(&v);
 /// ```
-pub fn cophenetic_distances(v: &[usize]) -> Vec<Vec<usize>> {
-    let result = _cophenetic_distances(v, None);
-
-    // Convert f32 to usize
-    result
-        .iter()
-        .map(|row| row.iter().map(|&x| x as usize).collect())
-        .collect()
+pub fn cophenetic_distances(v: &[usize]) -> Array2<f32> {
+    _cophenetic_distances(v, None)
 }
 
 // Get the ancestry path of a tree node

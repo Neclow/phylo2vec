@@ -15,7 +15,7 @@ def check_matrix(m: np.ndarray) -> None:
     m : numpy.ndarray
         Phylo2Vec matrix
     """
-    core.check_m(m.tolist())
+    core.check_m(m)
 
 
 def sample_matrix(n_leaves: int, ordered: bool = False) -> np.ndarray:
@@ -37,5 +37,29 @@ def sample_matrix(n_leaves: int, ordered: bool = False) -> np.ndarray:
         2nd and 3rd columns: branch lengths of cherry [i] in the ancestry matrix
     """
 
-    matrix = core.sample_matrix(n_leaves, ordered)
-    return np.asarray(matrix)
+    return core.sample_matrix(n_leaves, ordered)
+
+
+def precision(m: np.ndarray) -> np.ndarray:
+    """Convert a Phylo2Vec matrix to a specified precision.
+
+    Parameters
+    ----------
+    m : numpy.ndarray
+        Phylo2Vec matrix
+    precision : int, optional
+        Number of decimal places, by default 6
+
+    Returns
+    -------
+    numpy.ndarray
+        Phylo2Vec matrix with specified precision
+    """
+    k = m.shape[0]
+    n_leaves = k + 1
+    p = core.precision(m)
+    a = p[:n_leaves, :n_leaves]
+    b = p[:n_leaves, n_leaves:]
+    c = p[n_leaves:, n_leaves:]
+
+    return a - b @ np.linalg.solve(c, b.T)

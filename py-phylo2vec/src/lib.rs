@@ -1,3 +1,4 @@
+use numpy::{IntoPyArray, PyArray1, PyArray2, PyReadonlyArray1, PyReadonlyArray2};
 use pyo3::prelude::*;
 
 use phylo2vec::tree_vec::ops;
@@ -11,8 +12,9 @@ fn to_newick_from_vector(input_vector: Vec<usize>) -> PyResult<String> {
 }
 
 #[pyfunction]
-fn to_newick_from_matrix(input_matrix: Vec<Vec<f32>>) -> PyResult<String> {
-    let newick = ops::to_newick_from_matrix(&input_matrix);
+fn to_newick_from_matrix(input_matrix: PyReadonlyArray2<f32>) -> PyResult<String> {
+    let arr = input_matrix.as_array();
+    let newick = ops::to_newick_from_matrix(&arr);
     Ok(newick)
 }
 
@@ -22,8 +24,8 @@ fn to_vector(newick: &str) -> Vec<usize> {
 }
 
 #[pyfunction]
-fn to_matrix(newick: &str) -> Vec<Vec<f32>> {
-    ops::matrix::to_matrix(newick)
+fn to_matrix<'py>(py: Python<'py>, newick: &str) -> Bound<'py, PyArray2<f32>> {
+    ops::matrix::to_matrix(newick).into_pyarray(py)
 }
 
 #[pyfunction]
@@ -71,18 +73,22 @@ fn sample_vector(n_leaves: usize, ordered: bool) -> Vec<usize> {
 }
 
 #[pyfunction]
-fn cophenetic_distances(input_vector: Vec<usize>) -> Vec<Vec<usize>> {
-    ops::vector::cophenetic_distances(&input_vector)
+fn cophenetic_distances(py: Python<'_>, input_vector: Vec<usize>) -> Bound<'_, PyArray2<f32>> {
+    ops::vector::cophenetic_distances(&input_vector).into_pyarray(py)
 }
 
 #[pyfunction]
-fn cophenetic_distances_with_bls(input_matrix: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
-    ops::matrix::cophenetic_distances_with_bls(&input_matrix)
+fn cophenetic_distances_with_bls<'py>(
+    py: Python<'py>,
+    input_matrix: PyReadonlyArray2<f32>,
+) -> Bound<'py, PyArray2<f32>> {
+    let m = input_matrix.as_array();
+    ops::matrix::cophenetic_distances_with_bls(&m).into_pyarray(py)
 }
 
 #[pyfunction]
-fn sample_matrix(n_leaves: usize, ordered: bool) -> Vec<Vec<f32>> {
-    utils::sample_matrix(n_leaves, ordered)
+fn sample_matrix(py: Python<'_>, n_leaves: usize, ordered: bool) -> Bound<'_, PyArray2<f32>> {
+    utils::sample_matrix(n_leaves, ordered).into_pyarray(py)
 }
 
 #[pyfunction]
@@ -91,8 +97,9 @@ fn check_v(input_vector: Vec<usize>) {
 }
 
 #[pyfunction]
-fn check_m(input_matrix: Vec<Vec<f32>>) {
-    utils::check_m(&input_matrix);
+fn check_m(input_matrix: PyReadonlyArray2<f32>) {
+    let m = input_matrix.as_array();
+    utils::check_m(&m);
 }
 
 #[pyfunction]
@@ -158,6 +165,46 @@ fn queue_shuffle(v: Vec<usize>, shuffle_cherries: bool) -> (Vec<usize>, Vec<usiz
     ops::vector::queue_shuffle(&v, shuffle_cherries)
 }
 
+#[pyfunction]
+fn pre_precision_old(input_matrix: Vec<Vec<f32>>) -> Vec<Vec<f32>> {
+    ops::matrix::pre_precision_old(&input_matrix)
+}
+
+#[pyfunction]
+fn pre_precision<'py>(
+    py: Python<'py>,
+    input_matrix: PyReadonlyArray2<f32>,
+) -> Bound<'py, PyArray2<f32>> {
+    let m = input_matrix.as_array();
+    let result = ops::matrix::pre_precision(&m);
+    result.into_pyarray(py)
+}
+
+#[pyfunction]
+fn sample_matrix_old(n_leaves: usize, ordered: bool) -> Vec<Vec<f32>> {
+    utils::sample_matrix_old(n_leaves, ordered)
+}
+
+#[pyfunction]
+fn sample_vector_ndarray(
+    py: Python<'_>,
+    n_leaves: usize,
+    ordered: bool,
+) -> Bound<'_, PyArray1<usize>> {
+    utils::sample_vector_ndarray(n_leaves, ordered).into_pyarray(py)
+}
+
+#[pyfunction]
+fn get_ancestry_ndarray<'py>(
+    py: Python<'py>,
+    input_vector: PyReadonlyArray1<usize>,
+) -> Bound<'py, PyArray2<usize>> {
+    let input_vec = input_vector.as_array();
+    let v = input_vec.to_vec();
+    let ancestry = ops::vector::get_ancestry_ndarray(&v);
+    ancestry.into_pyarray(py)
+}
+
 /// This module is exposed to Python.
 /// The line below raises an issue in DeepSource stating that this function's cyclomatic complexity is higher than threshold
 /// the analyzer does not understand that this is an API exposure function, hence the comment above to skip over this occurrence.
@@ -181,6 +228,7 @@ fn _phylo2vec_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(get_pairs, m)?)?;
     m.add_function(wrap_pyfunction!(has_branch_lengths, m)?)?;
     m.add_function(wrap_pyfunction!(has_parents, m)?)?;
+    m.add_function(wrap_pyfunction!(pre_precision, m)?)?;
     m.add_function(wrap_pyfunction!(queue_shuffle, m)?)?;
     m.add_function(wrap_pyfunction!(remove_branch_lengths, m)?)?;
     m.add_function(wrap_pyfunction!(remove_leaf, m)?)?;
@@ -191,6 +239,10 @@ fn _phylo2vec_core(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(to_newick_from_matrix, m)?)?;
     m.add_function(wrap_pyfunction!(to_matrix, m)?)?;
     m.add_function(wrap_pyfunction!(to_vector, m)?)?;
+    m.add_function(wrap_pyfunction!(sample_matrix_old, m)?)?;
+    m.add_function(wrap_pyfunction!(pre_precision_old, m)?)?;
+    m.add_function(wrap_pyfunction!(sample_vector_ndarray, m)?)?;
+    m.add_function(wrap_pyfunction!(get_ancestry_ndarray, m)?)?;
     // Metadata about the package bindings
     m.add("__version__", env!("CARGO_PKG_VERSION"))?;
     Ok(())

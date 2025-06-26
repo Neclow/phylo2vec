@@ -210,3 +210,10 @@ tmp/
 
 # Outputs files from opt/
 trees/
+
+# FASTA Files
+*.fasta
+*.fa
+
+# Profiling outputs
+*.json.gz
