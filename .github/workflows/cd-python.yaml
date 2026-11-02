@@ -26,7 +26,10 @@ jobs:
         platform:
           - runner: ubuntu-latest
             target: x86_64
-          - runner: ubuntu-latest
+          # i386 containers have no network on ubuntu-26.04, so `yum` cannot install
+          # libatomic in manylinux2014_i686: https://github.com/actions/runner-images/issues/14790
+          # TODO: switch back to ubuntu-latest once fixed
+          - runner: ubuntu-24.04
             target: x86
           - runner: ubuntu-latest
             target: aarch64
