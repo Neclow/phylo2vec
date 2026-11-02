@@ -7,6 +7,7 @@ parts:
   - caption: Notebooks
     chapters:
       - file: notebooks/getting-started.ipynb
+      - file: notebooks/core-concepts.ipynb
       - file: notebooks/tree-operations.ipynb
       - file: notebooks/statistics.ipynb
       - file: notebooks/optimisation.ipynb
