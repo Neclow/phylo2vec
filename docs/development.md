@@ -247,3 +247,23 @@ devtools::load_all('./r-phylo2vec')
 v = sample_vector(5, FALSE)
 to_newick(v)
 ```
+
+## Releasing
+
+1. Set the new version in all packages, on a new branch:
+
+   ```console
+   pixi run update_version 1.9.0
+   ```
+
+   This updates the version in the `Cargo.toml` files of the Rust crates,
+   `r-phylo2vec/DESCRIPTION`, `pixi.toml` and `Cargo.lock`.
+
+2. Open a pull request with these changes and merge it.
+
+3. Publish a `v1.9.0` release from `main` on GitHub. This triggers the CD
+   workflows, which publish the Python package to PyPI and attach the R package
+   binaries to the release.
+
+Between releases, every push to `main` publishes a development version of the
+Python package to TestPyPI (e.g., `1.9.1-rc.5`, 5 commits after `v1.9.0`).
