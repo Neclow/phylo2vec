@@ -471,6 +471,107 @@ def extract_and_print_r_version(description_path: Path) -> str | None:
         return None
 
 
+# ---- All version files (used by the `update_version` pixi task) ----
+
+
+# Files containing the version of a package (path from the repository root, TOML section)
+TOML_VERSION_FILES = [
+    ("phylo2vec/Cargo.toml", "package"),
+    ("py-phylo2vec/Cargo.toml", "package"),
+    ("r-phylo2vec/src/rust/Cargo.toml", "package"),
+    ("pixi.toml", "workspace"),
+]
+
+
+def update_toml_section_version(toml_path: Path, section: str, new_version: str) -> str:
+    """
+    Update the `version` key of a section in a TOML file, leaving the rest of the file as is.
+
+    Parameters
+    ----------
+    toml_path : Path
+        Path to the TOML file
+    section : str
+        Name of the section containing the version (e.g., "package")
+    new_version : str
+        New version string to set
+
+    Returns
+    -------
+    str
+        Previous version string
+
+    Raises
+    ------
+    ValueError
+        If the section has no version key
+    """
+    content = toml_path.read_text()
+
+    # `version = "..."` (or with single quotes) in the section, before the next section
+    pattern = re.compile(
+        rf"(^\[{section}\]\n(?:(?!\[).*\n)*?version\s*=\s*)([\"'])([^\"']*)\2",
+        re.MULTILINE,
+    )
+    match = pattern.search(content)
+
+    if not match:
+        raise ValueError(f"No version found in the [{section}] section of {toml_path}")
+
+    prefix, quote, old_version = match.groups()
+    new_content = (
+        content[: match.start()]
+        + f"{prefix}{quote}{new_version}{quote}"
+        + content[match.end() :]
+    )
+    toml_path.write_text(new_content)
+
+    return old_version
+
+
+def update_all_versions(new_version: str) -> None:
+    """
+    Set the same version in all version files of the repository, and update Cargo.lock.
+
+    Parameters
+    ----------
+    new_version : str
+        New version string to set, in the major.minor.patch format
+
+    Raises
+    ------
+    ValueError
+        If the version is not in the major.minor.patch format
+    """
+    if not re.fullmatch(r"\d+\.\d+\.\d+", new_version):
+        raise ValueError(
+            f"Version must be in the major.minor.patch format, got '{new_version}'"
+        )
+
+    root = Path(__file__).parents[1]
+
+    for path, section in TOML_VERSION_FILES:
+        old_version = update_toml_section_version(root / path, section, new_version)
+        print(f"Updated {path} from {old_version} to {new_version}")
+
+    update_r_version(get_r_description_path(), new_version)
+
+    # Update the versions of the workspace crates in Cargo.lock
+    cargo_executable = shutil.which("cargo")
+    if cargo_executable is None:
+        warnings.warn(
+            "`cargo` not found. Run `cargo update --workspace` to update Cargo.lock.",
+            UserWarning,
+        )
+        return
+
+    subprocess.run(
+        [cargo_executable, "update", "--workspace", "--offline"],  # skipcq: BAN-B607
+        cwd=root,
+        check=True,
+    )
+
+
 # ---- Main functions ----
 
 
@@ -534,7 +635,7 @@ def process_r_version(
         return None
 
 
-def parse_args() -> Tuple[bool, bool, str, bool]:
+def parse_args() -> Tuple[bool, bool, str, bool, bool]:
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(
         description="Update version numbers for phylo2vec packages.",
@@ -542,10 +643,12 @@ def parse_args() -> Tuple[bool, bool, str, bool]:
         Examples:
         - python update_version.py --python --r
           (update both Python and R versions)
-        - python update_version.py --python 0.2.1 --r 0.2.1
+        - python update_version.py --python --r --version 0.2.1
           (set specific version for both)
         - python update_version.py --python --extract-only
           (extract Python version without modification)
+        - python update_version.py --all --version 0.2.1
+          (set specific version in all version files, e.g., before a release)
         """,
     )
 
@@ -564,15 +667,26 @@ def parse_args() -> Tuple[bool, bool, str, bool]:
         action="store_true",
         help="Only extract and print versions, no modifications",
     )
+    parser.add_argument(
+        "--all",
+        action="store_true",
+        help=(
+            "Set --version in all version files (Cargo.toml files, pixi.toml, "
+            "DESCRIPTION) and update Cargo.lock"
+        ),
+    )
 
     args = parser.parse_args()
+
+    if args.all and not args.version:
+        parser.error("--all requires --version")
 
     # Default to both if none specified
     if not args.python and not args.r:
         args.python = True
         args.r = True
 
-    return args.python, args.r, args.version, args.extract_only
+    return args.python, args.r, args.version, args.extract_only, args.all
 
 
 def main():
@@ -582,7 +696,11 @@ def main():
     This function handles both Python and R package versioning based on command line arguments.
     """
     try:
-        update_python, update_r, new_version, extract_only = parse_args()
+        update_python, update_r, new_version, extract_only, update_all = parse_args()
+
+        if update_all:
+            update_all_versions(new_version)
+            return
 
         if update_python:
             process_python_version(new_version, extract_only)

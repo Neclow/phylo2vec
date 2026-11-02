@@ -1,6 +1,6 @@
 [workspace]
 name = "phylo2vec"
-version = "1.7.0"
+version = "1.8.1"
 description = "Phylo2Vec"
 authors = ["Neil Scheidwasser"]
 channels = ["conda-forge"]
@@ -29,6 +29,8 @@ install-samply = "cargo install samply"
 profile = { cmd = "cargo build --profile profiling && samply record target/profiling/profile_main", depends-on = [
     "install-samply",
 ] }
+# Set the version of all packages before a release, e.g.: pixi run update_version 1.9.0
+update_version = "python resources/update_version.py --all --version"
 
 # ======= CI Environments ==========
 [environments]
