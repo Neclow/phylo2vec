@@ -382,7 +382,9 @@ fn get_node_depths(tree: RTree) -> Vec<f64> {
 /// @param shuffle_cherries If true, the algorithm will randomly shuffle the order of cherries (i.e., pairs of leaves)
 /// @return A list with two elements:
 /// - `v`: The ordered phylo2vec vector
-/// - `mapping`: A mapping of the original labels to the new labels
+/// - `mapping`: Mapping of the new leaf labels to the original ones:
+///   leaf `i` in `v` was leaf `mapping[i + 1]` in `vector`
+///   (leaf labels start at 0, R indices at 1)
 /// @export
 #[extendr]
 fn queue_shuffle(vector: Vec<i32>, shuffle_cherries: bool) -> List {
