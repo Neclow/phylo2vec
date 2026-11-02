@@ -185,7 +185,9 @@ leaf_depth_variance <- function(vector) .Call(wrap__leaf_depth_variance, vector)
 #' @param shuffle_cherries If true, the algorithm will randomly shuffle the order of cherries (i.e., pairs of leaves)
 #' @return A list with two elements:
 #' - `v`: The ordered phylo2vec vector
-#' - `mapping`: A mapping of the original labels to the new labels
+#' - `mapping`: Mapping of the new leaf labels to the original ones:
+#'   leaf `i` in `v` was leaf `mapping[i + 1]` in `vector`
+#'   (leaf labels start at 0, R indices at 1)
 #' @export
 queue_shuffle <- function(vector, shuffle_cherries) .Call(wrap__queue_shuffle, vector, shuffle_cherries)
 

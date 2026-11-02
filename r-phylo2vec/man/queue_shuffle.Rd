@@ -16,7 +16,9 @@ queue_shuffle(vector, shuffle_cherries)
 A list with two elements:
 \itemize{
 \item \code{v}: The ordered phylo2vec vector
-\item \code{mapping}: A mapping of the original labels to the new labels
+\item \code{mapping}: Mapping of the new leaf labels to the original ones:
+leaf \code{i} in \code{v} was leaf \code{mapping[i + 1]} in \code{vector}
+(leaf labels start at 0, R indices at 1)
 }
 }
 \description{

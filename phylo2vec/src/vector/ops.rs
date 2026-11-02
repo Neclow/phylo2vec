@@ -321,77 +321,77 @@ pub fn get_node_depth(v: &[usize], node: usize) -> Result<f64, String> {
 /// Queue Shuffle ensures that the output tree is ordered,
 /// while also ensuring a smooth path through the space of orderings
 ///
-/// for more details, see <https://doi.org/10.1093/gbe/evad213>
+/// For more details, see <https://doi.org/10.1093/gbe/evad213>
 ///
-/// Illustration of the algorithm with a simple case:
-///                  ////-3
-///            ////6|
-///      ////7|      \\\\-2
-///     |      \\\\-1
-///   -8|
-///     |
-///     |      ////-4
-///      \\\\5|
-///            \\\\-0
+/// Illustration of the algorithm on the tree `(((3,2)6,1)7,(4,0)5)8;`:
 ///
-///   The ancestry array of this tree is:
-///   [[0, 4, 5]
-///   [2, 3, 6]
-///   [1, 6, 7]
-///   [5, 7, 8]]
+/// ```text
+///              /-3
+///           /6|
+///        /7|   \-2
+///       |  |
+///     -8|   \-1
+///       |
+///       |   /-4
+///        \5|
+///           \-0
+/// ```
 ///
-///   Unrolled from the bottom right, it becomes:
-///   8 7 5 6 1 3 2 4 0
+/// Its ancestry (see [`to_ancestry`]) is:
 ///
-///   We encode the nodes as follows:
-///   Start by encoding the first two non-root nodes as 0, 1
-///   For the next pairs:
-///    * The left member takes the label was the previous parent node
-///    * The right member increments the previous right member by 1
+/// ```text
+/// [[0, 4, 5],
+///  [2, 3, 6],
+///  [1, 6, 7],
+///  [5, 7, 8]]
+/// ```
 ///
-///   8 7 5 6 1 3 2 4 0
-///     0 1 0 2
+/// Internal nodes are visited breadth-first from the root using a queue.
+/// For each visited node (row `[child1, child2, parent]`), `child2`
+/// inherits the label of its parent (0 for the root) and `child1` takes
+/// the next label (1, 2, 3, ...):
 ///
-///   (previous parent node = 7, encoded as 0)
+/// ```text
+/// node  label   child2 -> label   child1 -> label
+/// 8     0       7 -> 0            5 -> 1
+/// 7     0       6 -> 0            1 -> 2
+/// 5     1       4 -> 1            0 -> 3
+/// 6     0       3 -> 0            2 -> 4
+/// ```
 ///
-///   then
+/// The new labels of the leaves are their labels in the ordered tree, and the
+/// (child2, child1) label pairs, in reverse order, are the pairs of the new
+/// vector (see [`from_pairs`]).
 ///
-///   8 7 5 6 1 3 2 4 0
-///     0 1 0 2 1 3
+/// # Arguments
+/// * `v` - Phylo2Vec vector
+/// * `shuffle_cherries` - If true, randomly swap the order of the two children
+///   of each internal node (i.e., the first two columns of the ancestry)
 ///
-///   (previous parent node = 5, encoded as 1)
-///
-///   then
-///
-///   8 7 5 6 1 3 2 4 0
-///     0 1 0 2 1 3 0 4
-///
-///   (previous parent node = 6, encoded as 0)
-///
-///   The created sequence, viewed two by two
-///   constitutes the reversed pairs of the Phylo2Vec vector:
-///   ((0, 1), (0, 2), (1, 3), (0, 4))
-///
-///   Note that the full algorithm also features a queue of internal nodes
-///   which could switch the processing order of rows in the ancestry array.
-///
+/// # Returns
+/// A tuple `(v_qs, label_mapping)`:
+/// * `v_qs` - The ordered Phylo2Vec vector
+/// * `label_mapping` - Mapping of the new leaf labels to the original ones:
+///   leaf `i` in `v_qs` is leaf `label_mapping[i]` in `v`
 ///
 /// # Examples
 ///
 /// ```
 /// use phylo2vec::vector::ops::queue_shuffle;
 ///
+/// // Tree illustrated above
+/// let v = vec![0, 1, 2, 0];
+/// let (v_qs, label_mapping) = queue_shuffle(&v, false);
+/// assert_eq!(v_qs, vec![0, 0, 1, 0]);
+/// // e.g., leaf 0 in v_qs was leaf 3 in v
+/// assert_eq!(label_mapping, vec![3, 4, 1, 0, 2]);
+///
 /// // Tree with 7 leaves
 /// let v = vec![0, 0, 0, 2, 5, 3];
 /// let (v_qs, label_mapping) = queue_shuffle(&v, false);
 /// assert_eq!(v_qs, vec![0, 1, 1, 2, 3, 2]);
-/// // Suppose that you originally have a list of string labels for taxa
-/// // Initially, represent the n-th taxon by an integer leaf n
-/// // In this scenario,
-/// // Leaves 0, 1, 2, 3 remain unchanged
-/// // The 5th taxon is now represented by 6
-/// // The 6th taxon is now represented by 4
-/// // The 7th taxon is now represented by 5
+/// // If `taxa[j]` is the taxon of leaf j in v,
+/// // `taxa[label_mapping[i]]` is the taxon of leaf i in v_qs
 /// assert_eq!(label_mapping, vec![1, 5, 6, 4, 0, 2, 3]);
 /// ```
 pub fn queue_shuffle(v: &[usize], shuffle_cherries: bool) -> (Vec<usize>, Vec<usize>) {
