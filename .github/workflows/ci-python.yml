@@ -53,4 +53,4 @@ jobs:
         run: |
           cd docs/notebooks
           pixi run -e py-phylo2vec jupyter nbconvert --to notebook --execute --output-dir "$RUNNER_TEMP" \
-            getting-started.ipynb tree-operations.ipynb statistics.ipynb
+            getting-started.ipynb core-concepts.ipynb tree-operations.ipynb statistics.ipynb
