@@ -37,7 +37,7 @@ jobs:
           environments: py-phylo2vec
       - run: pixi run -e py-phylo2vec benchmark
   notebooks:
-    name: Test main demo notebook
+    name: Test notebooks
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -48,7 +48,9 @@ jobs:
         run: |
           pixi run -e py-phylo2vec install-python
           pixi run -e py-phylo2vec pip install nbconvert
-      - name: Execute demo notebook
+      # optimisation.ipynb is skipped as it needs the [opt] extras, RAxML-NG and R
+      - name: Execute notebooks
         run: |
-          cd docs
-          pixi run -e py-phylo2vec jupyter nbconvert --to notebook --execute demo.ipynb --output demo_executed.ipynb
+          cd docs/notebooks
+          pixi run -e py-phylo2vec jupyter nbconvert --to notebook --execute --output-dir "$RUNNER_TEMP" \
+            getting-started.ipynb tree-operations.ipynb statistics.ipynb
