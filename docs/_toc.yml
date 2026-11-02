@@ -4,10 +4,12 @@
 format: jb-book
 root: README.md
 parts:
-  - caption: Tutorials
+  - caption: Notebooks
     chapters:
-      - file: demo.ipynb
-      - file: demo_opt.ipynb
+      - file: notebooks/getting-started.ipynb
+      - file: notebooks/tree-operations.ipynb
+      - file: notebooks/statistics.ipynb
+      - file: notebooks/optimisation.ipynb
   - caption: Help and References
     chapters:
       - file: installation.md

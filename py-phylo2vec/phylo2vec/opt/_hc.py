@@ -11,7 +11,7 @@ from joblib import delayed, Parallel
 from phylo2vec.opt._api import register_method
 from phylo2vec.opt._base import BaseOptimizer, BaseResult
 from phylo2vec.opt._hc_losses import raxml_loss
-from phylo2vec.utils.vector import reorder_v, reroot_at_random
+from phylo2vec.utils.vector import queue_shuffle, reroot_at_random
 
 
 @register_method()
@@ -161,7 +161,8 @@ class HillClimbing(BaseOptimizer):
             Updated mapping of leaf labels (integer) to taxa
         """
         # Reorder v
-        v_shuffled, label_mapping = reorder_v("birth_death", v, label_mapping)
+        v_shuffled, vec_mapping = queue_shuffle(v, shuffle_cherries=False)
+        label_mapping = {i: label_mapping[idx] for i, idx in enumerate(vec_mapping)}
 
         # Get current loss
         current_best_loss = raxml_loss(

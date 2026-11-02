@@ -189,8 +189,8 @@ trees/# pixi environments
 # Web
 *.html
 
-# Experimental notebooks folder
-notebooks/
+# Experimental notebooks folder (at the root, not docs/notebooks/)
+/notebooks/
 
 # Benchmarks output files
 .benchmarks/
