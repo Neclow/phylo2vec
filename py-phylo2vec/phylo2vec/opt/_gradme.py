@@ -207,7 +207,7 @@ class GradME(BaseOptimizer):
 
         return GradMEResult(
             best=best_tree,
-            best_W=softmax(best_W, where=jnp.tril(jnp.ones_like(best_W))),
+            best_W=softmax(best_W, where=jnp.tril(jnp.ones_like(best_W, dtype=bool))),
             best_score=best_score,
             scores=scores,
             label_mapping=best_label_mapping,
