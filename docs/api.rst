@@ -90,7 +90,8 @@ Datasets
 Optimisation
 ----------------
 
-Requires the optional dependencies: ``pip install phylo2vec[opt]``
+``opt.GradME`` and ``opt.gradme_loss`` require the optional dependencies:
+``pip install phylo2vec[gradme]``
 
 .. autosummary::
     :nosignatures:

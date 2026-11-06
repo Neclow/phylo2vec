@@ -34,9 +34,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-opt = [
+gradme = [
     "jax",
-    "joblib",
     "optax",
     "rpy2",
     "tqdm"

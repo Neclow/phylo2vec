@@ -48,7 +48,7 @@ jobs:
         run: |
           pixi run -e py-phylo2vec install-python
           pixi run -e py-phylo2vec pip install nbconvert
-      # optimisation.ipynb is skipped as it needs the [opt] extras, RAxML-NG and R
+      # optimisation.ipynb is skipped as it needs the [gradme] extras, RAxML-NG and R
       - name: Execute notebooks
         run: |
           cd docs/notebooks
