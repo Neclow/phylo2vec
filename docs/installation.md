@@ -10,14 +10,13 @@ The easiest way to install the standard Python package is using pip:
 pip install phylo2vec
 ```
 
-Several optimization schemes based on Phylo2Vec are also available, but require
-extra dependencies. (See this
+Several optimization schemes based on Phylo2Vec are also available (see this
 [notebook](https://phylo2vec.readthedocs.io/en/latest/notebooks/optimisation.html)
-for a demo). To avoid bloating the standard package, these dependencies must be
-installed separately. To do so, run:
+for a demo). GradME requires extra dependencies, which are not installed by
+default to avoid bloating the standard package. To install them, run:
 
 ```bash
-pip install phylo2vec[opt]
+pip install phylo2vec[gradme]
 ```
 
 ### Manual installation
